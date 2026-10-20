@@ -1,0 +1,42 @@
+:root {
+  color-scheme: light;
+  --background: #f5f7fb;
+  --foreground: #172033;
+  --muted: #667085;
+  --border: #dce2ec;
+  --primary: #3457d5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--background); color: var(--foreground); font-family: Arial, Helvetica, sans-serif; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+input, select, textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; background: white; color: var(--foreground); }
+label { display: block; font-size: 13px; font-weight: 650; margin-bottom: 7px; }
+.scheduler { max-width: 980px; margin: 0 auto; padding: 40px 20px 70px; }
+.hero { margin-bottom: 24px; }
+.eyebrow { color: var(--primary); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; }
+h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em; margin: 8px 0; }
+.subtitle { color: var(--muted); line-height: 1.6; max-width: 680px; }
+.panel { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 22px; box-shadow: 0 12px 32px #24324d0a; margin-top: 18px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field { min-width: 0; }
+.full { grid-column: 1 / -1; }
+.primary, .secondary, .slot { border-radius: 10px; border: 1px solid var(--border); padding: 11px 15px; font-weight: 700; }
+.primary { background: var(--primary); color: white; border-color: var(--primary); }
+.secondary { background: white; color: var(--foreground); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.status { margin-top: 14px; color: var(--muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+.slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.slot { text-align: left; background: white; }
+.slot strong, .slot span { display: block; }
+.slot span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.slot.selected { border-color: var(--primary); box-shadow: 0 0 0 2px #3457d522; background: #f2f5ff; }
+.success { padding: 14px; border-radius: 12px; background: #ecfdf3; color: #067647; line-height: 1.5; overflow-wrap: anywhere; }
+.error { color: #b42318; }
+.small { color: var(--muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 620px) {
+  .scheduler { padding: 24px 14px 48px; }
+  .grid, .slots { grid-template-columns: 1fr; }
+  .panel { padding: 17px; }
+}
