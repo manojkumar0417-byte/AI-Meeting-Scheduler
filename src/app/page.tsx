@@ -5102,7 +5102,7 @@ export default function MeetingSchedulerPage() {
     const recognition = new SpeechRecognitionAPI();
 
     recognition.lang = "en-IN";
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
 
     latestTranscriptRef.current = "";
