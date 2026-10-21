@@ -978,6 +978,414 @@
 
 // src/app/api/ai/route.ts
 
+// import { NextResponse } from "next/server";
+
+// export const runtime = "nodejs";
+
+// type MeetingDetails = {
+//   title: string;
+//   description: string;
+//   date: string;
+//   durationMinutes: number;
+//   preferredStartTime: string;
+//   preferredEndTime: string;
+//   attendees: string[];
+// };
+
+// function jsonError(message: string, status = 400) {
+//   return NextResponse.json({ error: message }, { status });
+// }
+
+// function pad(value: number) {
+//   return String(value).padStart(2, "0");
+// }
+
+// function formatDate(date: Date) {
+//   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+// }
+
+// function atLocalMidnight(date: Date) {
+//   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+// }
+
+// function addDays(date: Date, days: number) {
+//   const result = new Date(date);
+//   result.setDate(result.getDate() + days);
+//   return result;
+// }
+
+// function parseDate(text: string): string | null {
+//   const lower = text.toLowerCase();
+//   const today = atLocalMidnight(new Date());
+
+//   if (/\bday after tomorrow\b/.test(lower)) {
+//     return formatDate(addDays(today, 2));
+//   }
+
+//   if (/\btomorrow\b/.test(lower)) {
+//     return formatDate(addDays(today, 1));
+//   }
+
+//   if (/\btoday\b/.test(lower)) {
+//     return formatDate(today);
+//   }
+
+//   // ISO date: 2026-10-28
+//   const isoMatch = text.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+//   if (isoMatch) {
+//     const [, year, month, day] = isoMatch;
+//     const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+
+//     if (
+//       parsed.getFullYear() === Number(year) &&
+//       parsed.getMonth() === Number(month) - 1 &&
+//       parsed.getDate() === Number(day)
+//     ) {
+//       return formatDate(parsed);
+//     }
+//   }
+
+//   // Numeric date: MM/DD/YYYY or DD/MM/YYYY.
+//   // For ambiguous numeric dates, this uses MM/DD/YYYY.
+//   const numericMatch = text.match(
+//     /\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/,
+//   );
+
+//   if (numericMatch) {
+//     const first = Number(numericMatch[1]);
+//     const second = Number(numericMatch[2]);
+//     const year = Number(numericMatch[3]);
+
+//     const month = first > 12 ? second : first;
+//     const day = first > 12 ? first : second;
+//     const parsed = new Date(year, month - 1, day);
+
+//     if (
+//       parsed.getFullYear() === year &&
+//       parsed.getMonth() === month - 1 &&
+//       parsed.getDate() === day
+//     ) {
+//       return formatDate(parsed);
+//     }
+//   }
+
+//   // Named month dates, e.g. October 28 or 28 October 2026.
+//   const monthNames =
+//     "january|february|march|april|may|june|july|august|september|october|november|december";
+
+//   const monthFirst = text.match(
+//     new RegExp(
+//       `\\b(${monthNames})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(20\\d{2}))?\\b`,
+//       "i",
+//     ),
+//   );
+
+//   const dayFirst = text.match(
+//     new RegExp(
+//       `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})(?:\\s+(20\\d{2}))?\\b`,
+//       "i",
+//     ),
+//   );
+
+//   const monthIndex = (monthName: string) =>
+//     [
+//       "january",
+//       "february",
+//       "march",
+//       "april",
+//       "may",
+//       "june",
+//       "july",
+//       "august",
+//       "september",
+//       "october",
+//       "november",
+//       "december",
+//     ].indexOf(monthName.toLowerCase());
+
+//   if (monthFirst || dayFirst) {
+//     const match = monthFirst ?? dayFirst!;
+//     const month = monthFirst
+//       ? monthIndex(match[1])
+//       : monthIndex(match[2]);
+//     const day = Number(monthFirst ? match[2] : match[1]);
+//     const explicitYear = Number(
+//       (monthFirst ? match[3] : match[3]) || today.getFullYear(),
+//     );
+
+//     let parsed = new Date(explicitYear, month, day);
+
+//     if (
+//       parsed.getFullYear() !== explicitYear ||
+//       parsed.getMonth() !== month ||
+//       parsed.getDate() !== day
+//     ) {
+//       return null;
+//     }
+
+//     // If the year was omitted and the date has already passed, use next year.
+//     if (!match[3] && parsed < today) {
+//       parsed = new Date(explicitYear + 1, month, day);
+//     }
+
+//     return formatDate(parsed);
+//   }
+
+//   // Weekday names. "Next Wednesday" means the Wednesday of the following
+//   // calendar week. "Wednesday" means the next occurrence, including today.
+//   const weekdays: Record<string, number> = {
+//     sunday: 0,
+//     monday: 1,
+//     tuesday: 2,
+//     wednesday: 3,
+//     thursday: 4,
+//     friday: 5,
+//     saturday: 6,
+//   };
+
+//   const weekdayMatch = lower.match(
+//     /\b(next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+//   );
+
+//   if (weekdayMatch) {
+//     const isNextWeek = Boolean(weekdayMatch[1]);
+//     const targetDay = weekdays[weekdayMatch[2]];
+//     const currentDay = today.getDay();
+
+//     let daysAhead = (targetDay - currentDay + 7) % 7;
+
+//     if (isNextWeek) {
+//       daysAhead = daysAhead === 0 ? 7 : daysAhead + 7;
+//     }
+
+//     return formatDate(addDays(today, daysAhead));
+//   }
+
+//   return null;
+// }
+
+// function parseTime(text: string): string | null {
+//   // Examples: 11:30 AM, 11am, 16:45, 4:15pm.
+//   const match = text.match(
+//     /\b(?:at\s+|around\s+|by\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/i,
+//   );
+
+//   if (match) {
+//     let hour = Number(match[1]);
+//     const minute = Number(match[2] ?? "0");
+//     const period = match[3].toLowerCase().replace(/\./g, "");
+
+//     if (hour < 1 || hour > 12 || minute > 59) return null;
+
+//     if (period === "pm" && hour !== 12) hour += 12;
+//     if (period === "am" && hour === 12) hour = 0;
+
+//     return `${pad(hour)}:${pad(minute)}`;
+//   }
+
+//   // 24-hour time, e.g. "at 14:30".
+//   const twentyFourHourMatch = text.match(
+//     /\b(?:at\s+|around\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/,
+//   );
+
+//   if (twentyFourHourMatch) {
+//     return `${pad(Number(twentyFourHourMatch[1]))}:${twentyFourHourMatch[2]}`;
+//   }
+
+//   // General period hints are not exact times. The availability endpoint can
+//   // handle these only if a preferred window is supplied.
+//   return null;
+// }
+
+// function parseDuration(text: string): number {
+//   const lower = text.toLowerCase();
+
+//   const hoursMatch = lower.match(
+//     /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|hr)\b/,
+//   );
+//   const minutesMatch = lower.match(/\b(\d+)\s*(?:minutes?|mins?|min)\b/);
+
+//   let minutes = 0;
+
+//   if (hoursMatch) {
+//     minutes += Math.round(Number(hoursMatch[1]) * 60);
+//   }
+
+//   if (minutesMatch) {
+//     minutes += Number(minutesMatch[1]);
+//   }
+
+//   if (minutes > 0 && minutes <= 24 * 60) {
+//     return minutes;
+//   }
+
+//   if (/\bhalf[- ]hour\b/.test(lower)) return 30;
+//   if (/\bone hour\b/.test(lower)) return 60;
+
+//   return 30;
+// }
+
+// function parseAttendees(text: string): string[] {
+//   const matches = text.match(
+//     /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+//   );
+
+//   return [...new Set((matches ?? []).map((email) => email.toLowerCase()))];
+// }
+
+// function addMinutesToTime(time: string, minutesToAdd: number): string {
+//   const [hours, minutes] = time.split(":").map(Number);
+//   const total = hours * 60 + minutes + minutesToAdd;
+
+//   if (total > 24 * 60) return "23:59";
+
+//   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+// }
+
+// function fallbackTitle(text: string): string {
+//   let title = text
+//     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "")
+//     .replace(/\bplease\b/gi, "")
+//     .replace(/\b(set up|schedule|book|create|arrange|organize)\b/gi, "")
+//     .replace(/\b(a|an|the|meeting|call|for|with|on|at|next|tomorrow|today)\b/gi, " ")
+//     .replace(/\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b/gi, "")
+//     .replace(/\b\d+\s*(?:minutes?|mins?|hours?|hrs?)\b/gi, "")
+//     .replace(/\s+/g, " ")
+//     .trim();
+
+//   if (!title) title = "Team Meeting";
+
+//   title = title.charAt(0).toUpperCase() + title.slice(1);
+
+//   return title.length > 80 ? `${title.slice(0, 77)}...` : title;
+// }
+
+// async function generateTitleAndDescription(
+//   prompt: string,
+//   fallback: string,
+// ): Promise<{ title: string; description: string }> {
+//   const baseUrl = (
+//     process.env.OLLAMA_BASE_URL || "http://localhost:11434"
+//   ).replace(/\/$/, "");
+//   const model = process.env.OLLAMA_MODEL || "llama3.2:1b";
+
+//   try {
+//     const response = await fetch(`${baseUrl}/api/generate`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({
+//         model,
+//         stream: false,
+//         format: "json",
+//         prompt: [
+//           "Extract a concise meeting title and description from the request.",
+//           "Return only JSON with exactly these string fields: title, description.",
+//           "Do not add dates, times, duration, or email addresses to the title.",
+//           "Do not invent participants or details.",
+//           `Request: ${prompt}`,
+//         ].join("\n"),
+//       }),
+//       signal: AbortSignal.timeout(12_000),
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`Ollama returned HTTP ${response.status}`);
+//     }
+
+//     const result = (await response.json()) as { response?: string };
+//     const parsed = JSON.parse(result.response || "{}") as {
+//       title?: unknown;
+//       description?: unknown;
+//     };
+
+//     return {
+//       title:
+//         typeof parsed.title === "string" && parsed.title.trim()
+//           ? parsed.title.trim().slice(0, 100)
+//           : fallback,
+//       description:
+//         typeof parsed.description === "string"
+//           ? parsed.description.trim().slice(0, 1000)
+//           : "",
+//     };
+//   } catch (error) {
+//     console.warn(
+//       "Ollama title generation unavailable; using fallback title.",
+//       error,
+//     );
+
+//     return { title: fallback, description: "" };
+//   }
+// }
+
+// export async function POST(request: Request) {
+//   try {
+//     const body = (await request.json()) as {
+//       prompt?: unknown;
+//       request?: unknown;
+//       text?: unknown;
+//     };
+
+//     const prompt =
+//       typeof body.prompt === "string"
+//         ? body.prompt.trim()
+//         : typeof body.request === "string"
+//           ? body.request.trim()
+//           : typeof body.text === "string"
+//             ? body.text.trim()
+//             : "";
+
+//     if (!prompt) {
+//       return jsonError("Please enter a meeting request.");
+//     }
+
+//     const date = parseDate(prompt);
+//     if (!date) {
+//       return jsonError(
+//         "I couldn't identify the meeting date. Try a date like 'next Wednesday' or 'October 28'.",
+//       );
+//     }
+
+//     const preferredStartTime = parseTime(prompt);
+//     if (!preferredStartTime) {
+//       return jsonError(
+//         "I couldn't identify an exact meeting time. Please include a time like '11:30 AM'.",
+//       );
+//     }
+
+//     const durationMinutes = parseDuration(prompt);
+//     const preferredEndTime = addMinutesToTime(
+//       preferredStartTime,
+//       durationMinutes,
+//     );
+
+//     const attendees = parseAttendees(prompt);
+//     const fallback = fallbackTitle(prompt);
+//     const generated = await generateTitleAndDescription(prompt, fallback);
+
+//     const details: MeetingDetails = {
+//       title: generated.title,
+//       description: generated.description,
+//       date,
+//       durationMinutes,
+//       preferredStartTime,
+//       preferredEndTime,
+//       attendees,
+//     };
+
+//     return NextResponse.json(details);
+//   } catch (error) {
+//     console.error("AI meeting parsing error:", error);
+//     return jsonError("Unable to process the meeting request.", 500);
+//   }
+// }
+
+
+// -------------------------------------------
+
+// correction of requirement
+
+
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -1030,25 +1438,29 @@ function parseDate(text: string): string | null {
     return formatDate(today);
   }
 
-  // ISO date: 2026-10-28
-  const isoMatch = text.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  const isoMatch = text.match(
+    /\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/
+  );
+
   if (isoMatch) {
-    const [, year, month, day] = isoMatch;
-    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const parsed = new Date(year, month - 1, day);
 
     if (
-      parsed.getFullYear() === Number(year) &&
-      parsed.getMonth() === Number(month) - 1 &&
-      parsed.getDate() === Number(day)
+      parsed.getFullYear() === year &&
+      parsed.getMonth() === month - 1 &&
+      parsed.getDate() === day
     ) {
       return formatDate(parsed);
     }
+
+    return null;
   }
 
-  // Numeric date: MM/DD/YYYY or DD/MM/YYYY.
-  // For ambiguous numeric dates, this uses MM/DD/YYYY.
   const numericMatch = text.match(
-    /\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/,
+    /\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/
   );
 
   if (numericMatch) {
@@ -1056,6 +1468,7 @@ function parseDate(text: string): string | null {
     const second = Number(numericMatch[2]);
     const year = Number(numericMatch[3]);
 
+    // Ambiguous dates use MM/DD/YYYY.
     const month = first > 12 ? second : first;
     const day = first > 12 ? first : second;
     const parsed = new Date(year, month - 1, day);
@@ -1067,72 +1480,64 @@ function parseDate(text: string): string | null {
     ) {
       return formatDate(parsed);
     }
+
+    return null;
   }
 
-  // Named month dates, e.g. October 28 or 28 October 2026.
   const monthNames =
     "january|february|march|april|may|june|july|august|september|october|november|december";
 
   const monthFirst = text.match(
     new RegExp(
       `\\b(${monthNames})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(20\\d{2}))?\\b`,
-      "i",
-    ),
+      "i"
+    )
   );
 
   const dayFirst = text.match(
     new RegExp(
       `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})(?:\\s+(20\\d{2}))?\\b`,
-      "i",
-    ),
+      "i"
+    )
   );
 
-  const monthIndex = (monthName: string) =>
-    [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ].indexOf(monthName.toLowerCase());
+  const months = [
+    "january", "february", "march", "april",
+    "may", "june", "july", "august",
+    "september", "october", "november", "december",
+  ];
 
-  if (monthFirst || dayFirst) {
-    const match = monthFirst ?? dayFirst!;
-    const month = monthFirst
-      ? monthIndex(match[1])
-      : monthIndex(match[2]);
-    const day = Number(monthFirst ? match[2] : match[1]);
-    const explicitYear = Number(
-      (monthFirst ? match[3] : match[3]) || today.getFullYear(),
+  const match = monthFirst ?? dayFirst;
+
+  if (match) {
+    const month = months.indexOf(
+      (monthFirst ? match[1] : match[2]).toLowerCase()
     );
 
-    let parsed = new Date(explicitYear, month, day);
+    const day = Number(monthFirst ? match[2] : match[1]);
+    const yearText = match[3];
+    const year = yearText
+      ? Number(yearText)
+      : today.getFullYear();
+
+    let parsed = new Date(year, month, day);
 
     if (
-      parsed.getFullYear() !== explicitYear ||
+      month < 0 ||
+      parsed.getFullYear() !== year ||
       parsed.getMonth() !== month ||
       parsed.getDate() !== day
     ) {
       return null;
     }
 
-    // If the year was omitted and the date has already passed, use next year.
-    if (!match[3] && parsed < today) {
-      parsed = new Date(explicitYear + 1, month, day);
+    if (!yearText && parsed < today) {
+      parsed = new Date(year + 1, month, day);
     }
 
     return formatDate(parsed);
   }
 
-  // Weekday names. "Next Wednesday" means the Wednesday of the following
-  // calendar week. "Wednesday" means the next occurrence, including today.
   const weekdays: Record<string, number> = {
     sunday: 0,
     monday: 1,
@@ -1144,7 +1549,7 @@ function parseDate(text: string): string | null {
   };
 
   const weekdayMatch = lower.match(
-    /\b(next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/,
+    /\b(next\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/
   );
 
   if (weekdayMatch) {
@@ -1165,9 +1570,9 @@ function parseDate(text: string): string | null {
 }
 
 function parseTime(text: string): string | null {
-  // Examples: 11:30 AM, 11am, 16:45, 4:15pm.
+  // 12-hour time: 11:30 AM, 11am, 4:15pm.
   const match = text.match(
-    /\b(?:at\s+|around\s+|by\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/i,
+    /\b(?:at\s+|around\s+|by\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/i
   );
 
   if (match) {
@@ -1175,7 +1580,9 @@ function parseTime(text: string): string | null {
     const minute = Number(match[2] ?? "0");
     const period = match[3].toLowerCase().replace(/\./g, "");
 
-    if (hour < 1 || hour > 12 || minute > 59) return null;
+    if (hour < 1 || hour > 12 || minute > 59) {
+      return null;
+    }
 
     if (period === "pm" && hour !== 12) hour += 12;
     if (period === "am" && hour === 12) hour = 0;
@@ -1183,27 +1590,28 @@ function parseTime(text: string): string | null {
     return `${pad(hour)}:${pad(minute)}`;
   }
 
-  // 24-hour time, e.g. "at 14:30".
-  const twentyFourHourMatch = text.match(
-    /\b(?:at\s+|around\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/,
+  // 24-hour time: 14:30.
+  const match24 = text.match(
+    /\b(?:at\s+|around\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/
   );
 
-  if (twentyFourHourMatch) {
-    return `${pad(Number(twentyFourHourMatch[1]))}:${twentyFourHourMatch[2]}`;
+  if (match24) {
+    return `${pad(Number(match24[1]))}:${match24[2]}`;
   }
 
-  // General period hints are not exact times. The availability endpoint can
-  // handle these only if a preferred window is supplied.
   return null;
 }
 
-function parseDuration(text: string): number {
+function parseDuration(text: string): number | null {
   const lower = text.toLowerCase();
 
   const hoursMatch = lower.match(
-    /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|hr)\b/,
+    /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|hr)\b/
   );
-  const minutesMatch = lower.match(/\b(\d+)\s*(?:minutes?|mins?|min)\b/);
+
+  const minutesMatch = lower.match(
+    /\b(\d+)\s*(?:minutes?|mins?|min)\b/
+  );
 
   let minutes = 0;
 
@@ -1215,29 +1623,46 @@ function parseDuration(text: string): number {
     minutes += Number(minutesMatch[1]);
   }
 
-  if (minutes > 0 && minutes <= 24 * 60) {
-    return minutes;
+  if (minutes === 0 && /\bhalf[- ]hour\b/.test(lower)) {
+    minutes = 30;
   }
 
-  if (/\bhalf[- ]hour\b/.test(lower)) return 30;
-  if (/\bone hour\b/.test(lower)) return 60;
+  if (minutes === 0 && /\bone hour\b/.test(lower)) {
+    minutes = 60;
+  }
 
-  return 30;
+  // Duration must be explicitly provided and within this app's limits.
+  if (
+    !Number.isInteger(minutes) ||
+    minutes < 15 ||
+    minutes > 180
+  ) {
+    return null;
+  }
+
+  return minutes;
 }
 
 function parseAttendees(text: string): string[] {
   const matches = text.match(
-    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
   );
 
-  return [...new Set((matches ?? []).map((email) => email.toLowerCase()))];
+  return [
+    ...new Set((matches ?? []).map((email) => email.toLowerCase())),
+  ];
 }
 
-function addMinutesToTime(time: string, minutesToAdd: number): string {
+function addMinutesToTime(
+  time: string,
+  minutesToAdd: number
+): string | null {
   const [hours, minutes] = time.split(":").map(Number);
   const total = hours * 60 + minutes + minutesToAdd;
 
-  if (total > 24 * 60) return "23:59";
+  if (total >= 24 * 60) {
+    return null;
+  }
 
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
@@ -1246,14 +1671,30 @@ function fallbackTitle(text: string): string {
   let title = text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "")
     .replace(/\bplease\b/gi, "")
-    .replace(/\b(set up|schedule|book|create|arrange|organize)\b/gi, "")
-    .replace(/\b(a|an|the|meeting|call|for|with|on|at|next|tomorrow|today)\b/gi, " ")
-    .replace(/\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b/gi, "")
-    .replace(/\b\d+\s*(?:minutes?|mins?|hours?|hrs?)\b/gi, "")
+    .replace(
+      /\b(set up|schedule|book|create|arrange|organize)\b/gi,
+      " "
+    )
+    .replace(
+      /\b(a|an|the|meeting|call|for|with|on|at|next|tomorrow|today)\b/gi,
+      " "
+    )
+    .replace(
+      /\b\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)\b/gi,
+      " "
+    )
+    .replace(/\b\d+\s*(?:minutes?|mins?|hours?|hrs?)\b/gi, " ")
+    .replace(
+      /\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi,
+      " "
+    )
+    .replace(/\b20\d{2}-\d{1,2}-\d{1,2}\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (!title) title = "Team Meeting";
+  if (!title) {
+    title = "Team Meeting";
+  }
 
   title = title.charAt(0).toUpperCase() + title.slice(1);
 
@@ -1262,11 +1703,12 @@ function fallbackTitle(text: string): string {
 
 async function generateTitleAndDescription(
   prompt: string,
-  fallback: string,
+  fallback: string
 ): Promise<{ title: string; description: string }> {
   const baseUrl = (
-    process.env.OLLAMA_BASE_URL || "http://localhost:11434"
+    process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   ).replace(/\/$/, "");
+
   const model = process.env.OLLAMA_MODEL || "llama3.2:1b";
 
   try {
@@ -1278,21 +1720,25 @@ async function generateTitleAndDescription(
         stream: false,
         format: "json",
         prompt: [
-          "Extract a concise meeting title and description from the request.",
-          "Return only JSON with exactly these string fields: title, description.",
-          "Do not add dates, times, duration, or email addresses to the title.",
-          "Do not invent participants or details.",
+          "Create a concise meeting title and description from the request.",
+          'Return JSON with exactly two string fields: "title" and "description".',
+          "Do not include date, time, duration, or email addresses in the title.",
+          "Do not invent a topic or participants.",
+          `If the topic is unclear, use this fallback title: ${fallback}`,
           `Request: ${prompt}`,
         ].join("\n"),
       }),
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(12000),
     });
 
     if (!response.ok) {
       throw new Error(`Ollama returned HTTP ${response.status}`);
     }
 
-    const result = (await response.json()) as { response?: string };
+    const result = (await response.json()) as {
+      response?: string;
+    };
+
     const parsed = JSON.parse(result.response || "{}") as {
       title?: unknown;
       description?: unknown;
@@ -1311,7 +1757,7 @@ async function generateTitleAndDescription(
   } catch (error) {
     console.warn(
       "Ollama title generation unavailable; using fallback title.",
-      error,
+      error
     );
 
     return { title: fallback, description: "" };
@@ -1340,31 +1786,56 @@ export async function POST(request: Request) {
     }
 
     const date = parseDate(prompt);
+
     if (!date) {
       return jsonError(
-        "I couldn't identify the meeting date. Try a date like 'next Wednesday' or 'October 28'.",
+        "Meeting date is missing or invalid. Specify today, tomorrow, next Wednesday, or a calendar date."
       );
     }
 
     const preferredStartTime = parseTime(prompt);
+
     if (!preferredStartTime) {
       return jsonError(
-        "I couldn't identify an exact meeting time. Please include a time like '11:30 AM'.",
+        "Exact meeting time is missing. Include a time such as 11:30 AM."
       );
     }
 
     const durationMinutes = parseDuration(prompt);
+
+    if (durationMinutes === null) {
+      return jsonError(
+        "Meeting duration is missing or invalid. Specify 15–180 minutes, for example 30 minutes."
+      );
+    }
+
     const preferredEndTime = addMinutesToTime(
       preferredStartTime,
-      durationMinutes,
+      durationMinutes
     );
 
+    if (!preferredEndTime) {
+      return jsonError(
+        "The meeting would extend past midnight. Choose an earlier start time."
+      );
+    }
+
     const attendees = parseAttendees(prompt);
+
+    if (attendees.length === 0) {
+      return jsonError(
+        "Attendee email is missing. Include at least one email address, such as someone@example.com."
+      );
+    }
+
     const fallback = fallbackTitle(prompt);
-    const generated = await generateTitleAndDescription(prompt, fallback);
+    const generated = await generateTitleAndDescription(
+      prompt,
+      fallback
+    );
 
     const details: MeetingDetails = {
-      title: generated.title,
+      title: generated.title.trim() || fallback,
       description: generated.description,
       date,
       durationMinutes,
@@ -1376,6 +1847,10 @@ export async function POST(request: Request) {
     return NextResponse.json(details);
   } catch (error) {
     console.error("AI meeting parsing error:", error);
-    return jsonError("Unable to process the meeting request.", 500);
+
+    return jsonError(
+      "Unable to process the meeting request. Check the server logs.",
+      500
+    );
   }
 }

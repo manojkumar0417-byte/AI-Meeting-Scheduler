@@ -3716,6 +3716,854 @@
 
 
 
+// "use client";
+
+// import {
+//   type FormEvent,
+//   type KeyboardEvent,
+//   useCallback,
+//   useEffect,
+//   useRef,
+//   useState,
+// } from "react";
+
+// type MeetingDetails = {
+//   title: string;
+//   description: string;
+//   date: string;
+//   durationMinutes: number;
+//   preferredStartTime: string;
+//   preferredEndTime: string;
+//   attendees: string[];
+// };
+
+// type MeetingSlot = {
+//   start: string;
+//   end: string;
+//   startTime?: string;
+//   endTime?: string;
+//   label?: string;
+// };
+
+// type CreatedEvent = {
+//   id?: string;
+//   htmlLink?: string | null;
+//   isDirectEventLink?: boolean;
+// };
+
+// type SpeechRecognitionAlternative = {
+//   transcript: string;
+// };
+
+// type SpeechRecognitionResult = {
+//   0: SpeechRecognitionAlternative;
+//   isFinal: boolean;
+// };
+
+// type SpeechRecognitionResultList = {
+//   length: number;
+//   [index: number]: SpeechRecognitionResult;
+// };
+
+// type SpeechRecognitionEventLike = {
+//   resultIndex: number;
+//   results: SpeechRecognitionResultList;
+// };
+
+// type SpeechRecognitionLike = {
+//   lang: string;
+//   continuous: boolean;
+//   interimResults: boolean;
+//   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+//   onerror: ((event: { error?: string }) => void) | null;
+//   onend: (() => void) | null;
+//   start: () => void;
+//   stop: () => void;
+// };
+
+// type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+// type WindowWithSpeechRecognition = Window & {
+//   SpeechRecognition?: SpeechRecognitionConstructor;
+//   webkitSpeechRecognition?: SpeechRecognitionConstructor;
+// };
+
+// function pad(value: number): string {
+//   return String(value).padStart(2, "0");
+// }
+
+// function formatDateForDisplay(dateString: string): string {
+//   const [year, month, day] = dateString.split("-").map(Number);
+
+//   const date = new Date(year, month - 1, day);
+
+//   return date.toLocaleDateString(undefined, {
+//     weekday: "long",
+//     year: "numeric",
+//     month: "long",
+//     day: "numeric",
+//   });
+// }
+
+// function formatTime(time: string): string {
+//   const [hours, minutes] = time.split(":").map(Number);
+//   const date = new Date();
+
+//   date.setHours(hours, minutes, 0, 0);
+
+//   return date.toLocaleTimeString(undefined, {
+//     hour: "numeric",
+//     minute: "2-digit",
+//   });
+// }
+
+// function getErrorMessage(data: unknown, fallback: string): string {
+//   if (data && typeof data === "object") {
+//     const record = data as Record<string, unknown>;
+
+//     if (typeof record.error === "string") {
+//       return record.error;
+//     }
+
+//     if (typeof record.message === "string") {
+//       return record.message;
+//     }
+//   }
+
+//   return fallback;
+// }
+
+// async function readJsonResponse(
+//   response: Response,
+//   fallback: string,
+// ): Promise<unknown> {
+//   const text = await response.text();
+
+//   if (!text.trim()) {
+//     throw new Error(
+//       response.ok
+//         ? "The server returned an empty response."
+//         : `${fallback} (HTTP ${response.status})`,
+//     );
+//   }
+
+//   let data: unknown;
+
+//   try {
+//     data = JSON.parse(text);
+//   } catch {
+//     throw new Error(
+//       `Invalid JSON response (HTTP ${response.status}). Check the API route and terminal logs.`,
+//     );
+//   }
+
+//   if (!response.ok) {
+//     throw new Error(
+//       getErrorMessage(data, `${fallback} (HTTP ${response.status})`),
+//     );
+//   }
+
+//   return data;
+// }
+
+// function normalizeSlots(data: unknown): MeetingSlot[] {
+//   if (!data || typeof data !== "object") {
+//     return [];
+//   }
+
+//   const record = data as Record<string, unknown>;
+
+//   const possibleSlots = Array.isArray(record.slots)
+//     ? record.slots
+//     : Array.isArray(record.availableSlots)
+//       ? record.availableSlots
+//       : Array.isArray(record.available)
+//         ? record.available
+//         : [];
+
+//   return possibleSlots
+//     .map((item): MeetingSlot | null => {
+//       if (!item || typeof item !== "object") {
+//         return null;
+//       }
+
+//       const slot = item as Record<string, unknown>;
+
+//       const start =
+//         typeof slot.start === "string" ? slot.start : "";
+
+//       const end =
+//         typeof slot.end === "string" ? slot.end : "";
+
+//       if (!start || !end) {
+//         return null;
+//       }
+
+//       return {
+//         start,
+//         end,
+//         startTime:
+//           typeof slot.startTime === "string"
+//             ? slot.startTime
+//             : undefined,
+//         endTime:
+//           typeof slot.endTime === "string"
+//             ? slot.endTime
+//             : undefined,
+//         label:
+//           typeof slot.label === "string"
+//             ? slot.label
+//             : undefined,
+//       };
+//     })
+//     .filter((slot): slot is MeetingSlot => slot !== null);
+// }
+
+// export default function MeetingSchedulerPage() {
+//   const [requestText, setRequestText] = useState("");
+//   const [details, setDetails] = useState<MeetingDetails | null>(null);
+//   const [selectedSlot, setSelectedSlot] = useState<MeetingSlot | null>(null);
+//   const [status, setStatus] = useState("");
+//   const [error, setError] = useState("");
+//   const [processing, setProcessing] = useState(false);
+//   const [creating, setCreating] = useState(false);
+//   const [created, setCreated] = useState(false);
+//   const [listening, setListening] = useState(false);
+//   const [calendarEvent, setCalendarEvent] = useState<CreatedEvent | null>(
+//     null,
+//   );
+
+//   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+//   const processingRef = useRef(false);
+//   const creatingRef = useRef(false);
+//   const latestTranscriptRef = useRef("");
+//   const interimTranscriptRef = useRef("");
+//   const autoProcessVoiceRef = useRef(false);
+
+//   useEffect(() => {
+//     return () => {
+//       autoProcessVoiceRef.current = false;
+//       recognitionRef.current?.stop();
+//     };
+//   }, []);
+
+//   const resetPreviousResult = useCallback(() => {
+//     setDetails(null);
+//     setSelectedSlot(null);
+//     setCreated(false);
+//     setCalendarEvent(null);
+//     setError("");
+//     setStatus("");
+//   }, []);
+
+//   const processMeetingRequest = useCallback(
+//     async (rawText: string) => {
+//       const prompt = rawText.trim();
+
+//       if (!prompt || processingRef.current || creatingRef.current) {
+//         return;
+//       }
+
+//       processingRef.current = true;
+//       setProcessing(true);
+//       resetPreviousResult();
+//       setStatus("Understanding your meeting request...");
+//       setError("");
+
+//       try {
+//         // The AI route in this project expects the "request" field.
+//         const aiResponse = await fetch("/api/ai", {
+//           method: "POST",
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//           body: JSON.stringify({ request: prompt }),
+//         });
+
+//         const aiData = await readJsonResponse(
+//           aiResponse,
+//           "Could not understand the meeting request.",
+//         );
+
+//         // Supports either { result: {...} } or a direct details object.
+//         const aiRecord = aiData as Record<string, unknown>;
+//         const parsed =
+//           (aiRecord.result ?? aiData) as MeetingDetails;
+
+//         if (
+//           !parsed ||
+//           typeof parsed.title !== "string" ||
+//           typeof parsed.date !== "string" ||
+//           !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ||
+//           typeof parsed.preferredStartTime !== "string" ||
+//           typeof parsed.preferredEndTime !== "string" ||
+//           !Number.isInteger(parsed.durationMinutes)
+//         ) {
+//           throw new Error(
+//             "The AI response must include a valid date, start time, end time, and duration. Check src/app/api/ai/route.ts.",
+//           );
+//         }
+
+//         if (
+//           !/^\d{2}:\d{2}$/.test(parsed.preferredStartTime) ||
+//           !/^\d{2}:\d{2}$/.test(parsed.preferredEndTime)
+//         ) {
+//           throw new Error("The AI returned an invalid meeting time.");
+//         }
+
+//         const safeDetails: MeetingDetails = {
+//           title: parsed.title,
+//           description:
+//             typeof parsed.description === "string"
+//               ? parsed.description
+//               : "",
+//           date: parsed.date,
+//           durationMinutes: parsed.durationMinutes,
+//           preferredStartTime: parsed.preferredStartTime,
+//           preferredEndTime: parsed.preferredEndTime,
+//           attendees: Array.isArray(parsed.attendees)
+//             ? parsed.attendees.filter(
+//                 (email): email is string =>
+//                   typeof email === "string",
+//               )
+//             : [],
+//         };
+
+//         setDetails(safeDetails);
+//         setStatus("Checking Google Calendar availability...");
+
+//         const availabilityResponse = await fetch("/api/availability", {
+//           method: "POST",
+//           headers: {
+//             "Content-Type": "application/json",
+//           },
+//           cache: "no-store",
+//           body: JSON.stringify({
+//             date: safeDetails.date,
+//             durationMinutes: safeDetails.durationMinutes,
+//             preferredStartTime: safeDetails.preferredStartTime,
+//             preferredEndTime: safeDetails.preferredEndTime,
+//           }),
+//         });
+
+//         const availabilityData = await readJsonResponse(
+//           availabilityResponse,
+//           "Could not check Google Calendar availability.",
+//         );
+
+//         const slots = normalizeSlots(availabilityData);
+
+//         const matchingSlot = slots.find((slot) => {
+//           if (slot.startTime && slot.endTime) {
+//             return (
+//               slot.startTime === safeDetails.preferredStartTime &&
+//               slot.endTime === safeDetails.preferredEndTime
+//             );
+//           }
+
+//           // Fallback for availability APIs that only return ISO dates.
+//           // This fallback assumes the browser timezone matches the
+//           // calendar timezone configured for this application.
+//           const startDate = new Date(slot.start);
+//           const endDate = new Date(slot.end);
+
+//           if (
+//             Number.isNaN(startDate.getTime()) ||
+//             Number.isNaN(endDate.getTime())
+//           ) {
+//             return false;
+//           }
+
+//           const localStart =
+//             `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+
+//           const localEnd =
+//             `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+
+//           return (
+//             localStart === safeDetails.preferredStartTime &&
+//             localEnd === safeDetails.preferredEndTime
+//           );
+//         });
+
+//         if (!matchingSlot) {
+//           setSelectedSlot(null);
+//           setStatus("");
+//           setError(
+//             `The requested time (${formatTime(
+//               safeDetails.preferredStartTime,
+//             )}–${formatTime(
+//               safeDetails.preferredEndTime,
+//             )}) is not available on ${formatDateForDisplay(
+//               safeDetails.date,
+//             )}. No meeting was created.`,
+//           );
+//           return;
+//         }
+
+//         setSelectedSlot(matchingSlot);
+//         setStatus(
+//           "The requested time is available. Review the details and confirm.",
+//         );
+//       } catch (caught) {
+//         setStatus("");
+//         setError(
+//           caught instanceof Error
+//             ? caught.message
+//             : "Something went wrong while processing the meeting request.",
+//         );
+//       } finally {
+//         processingRef.current = false;
+//         setProcessing(false);
+//       }
+//     },
+//     [resetPreviousResult],
+//   );
+
+//   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+//     event.preventDefault();
+//     await processMeetingRequest(requestText);
+//   }
+
+//   function handleInputKeyDown(
+//     event: KeyboardEvent<HTMLTextAreaElement>,
+//   ) {
+//     if (event.key === "Enter" && !event.shiftKey) {
+//       event.preventDefault();
+//       void processMeetingRequest(requestText);
+//     }
+//   }
+
+//   function startVoiceRecognition() {
+//     setError("");
+
+//     const speechWindow = window as WindowWithSpeechRecognition;
+
+//     const SpeechRecognitionAPI =
+//       speechWindow.SpeechRecognition ??
+//       speechWindow.webkitSpeechRecognition;
+
+//     if (!SpeechRecognitionAPI) {
+//       setError(
+//         "Voice recognition is not supported in this browser. Use Chrome or type your request.",
+//       );
+//       return;
+//     }
+
+//     if (listening) {
+//       autoProcessVoiceRef.current = true;
+//       recognitionRef.current?.stop();
+//       return;
+//     }
+
+//     const recognition = new SpeechRecognitionAPI();
+
+//     recognition.lang = "en-IN";
+//     recognition.continuous = false;
+//     recognition.interimResults = true;
+
+//     latestTranscriptRef.current = "";
+//     interimTranscriptRef.current = "";
+//     autoProcessVoiceRef.current = true;
+
+//     recognition.onresult = (event) => {
+//       let finalTranscript = "";
+//       let interimTranscript = "";
+
+//       for (
+//         let index = event.resultIndex;
+//         index < event.results.length;
+//         index++
+//       ) {
+//         const result = event.results[index];
+//         const transcript = result[0]?.transcript ?? "";
+
+//         if (result.isFinal) {
+//           finalTranscript += `${transcript} `;
+//         } else {
+//           interimTranscript += `${transcript} `;
+//         }
+//       }
+
+//       if (finalTranscript.trim()) {
+//         latestTranscriptRef.current = [
+//           latestTranscriptRef.current,
+//           finalTranscript,
+//         ]
+//           .filter(Boolean)
+//           .join(" ")
+//           .replace(/\s+/g, " ")
+//           .trim();
+
+//         interimTranscriptRef.current = "";
+//       } else if (interimTranscript.trim()) {
+//         interimTranscriptRef.current = interimTranscript.trim();
+//       }
+
+//       setRequestText(
+//         [
+//           latestTranscriptRef.current,
+//           interimTranscriptRef.current,
+//         ]
+//           .filter(Boolean)
+//           .join(" ")
+//           .replace(/\s+/g, " ")
+//           .trim(),
+//       );
+//     };
+
+//     recognition.onerror = (event) => {
+//       setListening(false);
+
+//       if (event.error !== "no-speech" && event.error !== "aborted") {
+//         autoProcessVoiceRef.current = false;
+//         setError(
+//           `Voice recognition failed: ${event.error ?? "unknown error"}`,
+//         );
+//       }
+//     };
+
+//     recognition.onend = () => {
+//       setListening(false);
+//       recognitionRef.current = null;
+
+//       const shouldProcess = autoProcessVoiceRef.current;
+//       autoProcessVoiceRef.current = false;
+
+//       const transcript = [
+//         latestTranscriptRef.current,
+//         interimTranscriptRef.current,
+//       ]
+//         .filter(Boolean)
+//         .join(" ")
+//         .replace(/\s+/g, " ")
+//         .trim();
+
+//       if (!transcript) {
+//         if (shouldProcess) {
+//           setError("No speech was detected. Please try again.");
+//         }
+//         return;
+//       }
+
+//       setRequestText(transcript);
+
+//       if (shouldProcess) {
+//         void processMeetingRequest(transcript);
+//       }
+//     };
+
+//     recognitionRef.current = recognition;
+
+//     try {
+//       setListening(true);
+//       recognition.start();
+//     } catch {
+//       setListening(false);
+//       autoProcessVoiceRef.current = false;
+//       recognitionRef.current = null;
+//       setError("Could not start voice recognition. Please try again.");
+//     }
+//   }
+
+//   async function confirmAndCreateMeeting() {
+//     if (
+//       !details ||
+//       !selectedSlot ||
+//       creatingRef.current ||
+//       processingRef.current ||
+//       created
+//     ) {
+//       return;
+//     }
+
+//     creatingRef.current = true;
+//     setCreating(true);
+//     setError("");
+//     setStatus("Creating your Google Calendar meeting...");
+
+//     try {
+//       const response = await fetch("/api/events", {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         cache: "no-store",
+//         body: JSON.stringify({
+//           title: details.title,
+//           description: details.description,
+//           date: details.date,
+//           durationMinutes: details.durationMinutes,
+//           start: selectedSlot.start,
+//           attendees: details.attendees,
+//         }),
+//       });
+
+//       const result = (await readJsonResponse(
+//         response,
+//         "Could not create the calendar event.",
+//       )) as {
+//         success?: boolean;
+//         message?: string;
+//         event?: CreatedEvent;
+//       };
+
+//       if (!result.success || !result.event?.htmlLink) {
+//         throw new Error(
+//           result.message ??
+//             "The server did not return the calendar event link.",
+//         );
+//       }
+
+//       setCalendarEvent(result.event);
+//       setCreated(true);
+//       setSelectedSlot(null);
+//       setStatus("Meeting created successfully in Google Calendar.");
+//     } catch (caught) {
+//       setStatus("");
+//       setError(
+//         caught instanceof Error
+//           ? caught.message
+//           : "Could not create the meeting.",
+//       );
+//     } finally {
+//       creatingRef.current = false;
+//       setCreating(false);
+//     }
+//   }
+
+//   const canConfirm = Boolean(
+//     details &&
+//       selectedSlot &&
+//       !created &&
+//       !processing &&
+//       !creating,
+//   );
+
+//   return (
+//     <main className="min-h-screen bg-slate-100 px-4 py-10 text-slate-900 sm:px-6">
+//       <div className="mx-auto max-w-3xl">
+//         <header className="mb-8 text-center">
+//           <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 text-2xl">
+//             📅
+//           </div>
+
+//           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+//             AI Real-Time Meeting Scheduler
+//           </h1>
+
+//           <p className="mt-3 text-sm text-slate-600 sm:text-base">
+//             Type or speak your request. We will check your Google Calendar
+//             before you confirm.
+//           </p>
+//         </header>
+
+//         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xl sm:p-7">
+//           <form onSubmit={handleSubmit}>
+//             <label
+//               htmlFor="meeting-request"
+//               className="mb-2 block text-sm font-semibold text-slate-800"
+//             >
+//               What meeting would you like to schedule?
+//             </label>
+
+//             <textarea
+//               id="meeting-request"
+//               value={requestText}
+//               onChange={(event) => setRequestText(event.target.value)}
+//               onKeyDown={handleInputKeyDown}
+//               placeholder="Please set up a meeting for tomorrow at 11:00 AM for 30 minutes with someone@example.com"
+//               rows={4}
+//               disabled={processing || creating || listening}
+//               className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60"
+//             />
+
+//             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+//               <p className="text-xs text-slate-500">
+//                 Press Enter to process · Shift+Enter for a new line
+//               </p>
+
+//               <button
+//                 type="button"
+//                 onClick={startVoiceRecognition}
+//                 disabled={processing || creating}
+//                 className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+//                   listening
+//                     ? "border-red-300 bg-red-50 text-red-700"
+//                     : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+//                 }`}
+//               >
+//                 <span aria-hidden="true">
+//                   {listening ? "■" : "🎙️"}
+//                 </span>
+//                 {listening ? "Stop listening" : "Speak"}
+//               </button>
+//             </div>
+
+//             <button
+//               type="submit"
+//               disabled={!requestText.trim() || processing || creating}
+//               className="hidden"
+//               tabIndex={-1}
+//               aria-hidden="true"
+//             >
+//               Process request
+//             </button>
+//           </form>
+
+//           {(processing || status) && (
+//             <div
+//               className="mt-5 flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800"
+//               role="status"
+//               aria-live="polite"
+//             >
+//               {processing && (
+//                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-700" />
+//               )}
+//               <span>{status}</span>
+//             </div>
+//           )}
+
+//           {error && (
+//             <div
+//               className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+//               role="alert"
+//             >
+//               {error}
+//             </div>
+//           )}
+
+//           {details && (
+//             <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+//               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+//                 <h2 className="text-lg font-bold">Meeting details</h2>
+
+//                 {selectedSlot && !created && (
+//                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+//                     Time available
+//                   </span>
+//                 )}
+//               </div>
+
+//               <dl className="divide-y divide-slate-200 text-sm">
+//                 <div className="py-3">
+//                   <dt className="text-slate-500">Title</dt>
+//                   <dd className="mt-1 font-semibold text-slate-900">
+//                     {details.title}
+//                   </dd>
+//                 </div>
+
+//                 <div className="py-3">
+//                   <dt className="text-slate-500">Date</dt>
+//                   <dd className="mt-1 font-semibold text-slate-900">
+//                     {formatDateForDisplay(details.date)}
+//                   </dd>
+//                 </div>
+
+//                 <div className="py-3">
+//                   <dt className="text-slate-500">Time</dt>
+//                   <dd className="mt-1 font-semibold text-slate-900">
+//                     {formatTime(details.preferredStartTime)} –{" "}
+//                     {formatTime(details.preferredEndTime)}
+//                   </dd>
+//                 </div>
+
+//                 <div className="py-3">
+//                   <dt className="text-slate-500">Duration</dt>
+//                   <dd className="mt-1 font-semibold text-slate-900">
+//                     {details.durationMinutes} minutes
+//                   </dd>
+//                 </div>
+
+//                 <div className="py-3">
+//                   <dt className="text-slate-500">Attendees</dt>
+//                   <dd className="mt-1 break-all font-semibold text-slate-900">
+//                     {details.attendees.length > 0
+//                       ? details.attendees.join(", ")
+//                       : "No attendee email detected"}
+//                   </dd>
+//                 </div>
+
+//                 {details.description && (
+//                   <div className="py-3">
+//                     <dt className="text-slate-500">Description</dt>
+//                     <dd className="mt-1 whitespace-pre-wrap font-semibold text-slate-900">
+//                       {details.description}
+//                     </dd>
+//                   </div>
+//                 )}
+//               </dl>
+
+//               {created ? (
+//                 <div className="mt-6 space-y-4">
+//                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-medium text-emerald-800">
+//                     ✓ Meeting created successfully in Google Calendar.
+//                   </div>
+
+//                   {calendarEvent?.htmlLink && (
+//                     <a
+//                       href={calendarEvent.htmlLink}
+//                       target="_blank"
+//                       rel="noopener noreferrer"
+//                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+//                     >
+//                       📅{" "}
+//                       {calendarEvent.isDirectEventLink
+//                         ? "View Event in Google Calendar"
+//                         : "Open Google Calendar"}
+//                       {" "}↗
+//                     </a>
+//                   )}
+
+//                   {calendarEvent?.isDirectEventLink === false && (
+//                     <p className="text-xs leading-5 text-slate-600">
+//                       Google did not return a direct event link. The button
+//                       opens Google Calendar on the meeting date. Find the
+//                       meeting there by its title and time.
+//                     </p>
+//                   )}
+//                 </div>
+//               ) : (
+//                 <button
+//                   type="button"
+//                   onClick={confirmAndCreateMeeting}
+//                   disabled={!canConfirm}
+//                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+//                 >
+//                   {creating ? (
+//                     <>
+//                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+//                       Creating meeting...
+//                     </>
+//                   ) : (
+//                     "Confirm & Create Meeting"
+//                   )}
+//                 </button>
+//               )}
+
+//               {!selectedSlot && !created && !processing && !error && (
+//                 <p className="mt-3 text-xs text-slate-500">
+//                   The confirmation button becomes available after the exact
+//                   requested time is confirmed available.
+//                 </p>
+//               )}
+//             </div>
+//           )}
+//         </section>
+
+//         <p className="mt-5 text-center text-xs leading-5 text-slate-500">
+//           Nothing is booked until you click Confirm &amp; Create Meeting.
+//         </p>
+//       </div>
+//     </main>
+//   );
+// }
+
+
+// ----------------------------------------
+// corrrection of requirement
+
+
 "use client";
 
 import {
@@ -3794,7 +4642,6 @@ function pad(value: number): string {
 
 function formatDateForDisplay(dateString: string): string {
   const [year, month, day] = dateString.split("-").map(Number);
-
   const date = new Date(year, month - 1, day);
 
   return date.toLocaleDateString(undefined, {
@@ -3817,6 +4664,32 @@ function formatTime(time: string): string {
   });
 }
 
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+function isValidTime(value: string): boolean {
+  if (!/^\d{2}:\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [hours, minutes] = value.split(":").map(Number);
+
+  return hours >= 0 && hours <= 23 &&
+    minutes >= 0 && minutes <= 59;
+}
+
 function getErrorMessage(data: unknown, fallback: string): string {
   if (data && typeof data === "object") {
     const record = data as Record<string, unknown>;
@@ -3835,7 +4708,7 @@ function getErrorMessage(data: unknown, fallback: string): string {
 
 async function readJsonResponse(
   response: Response,
-  fallback: string,
+  fallback: string
 ): Promise<unknown> {
   const text = await response.text();
 
@@ -3843,7 +4716,7 @@ async function readJsonResponse(
     throw new Error(
       response.ok
         ? "The server returned an empty response."
-        : `${fallback} (HTTP ${response.status})`,
+        : `${fallback} (HTTP ${response.status})`
     );
   }
 
@@ -3853,13 +4726,13 @@ async function readJsonResponse(
     data = JSON.parse(text);
   } catch {
     throw new Error(
-      `Invalid JSON response (HTTP ${response.status}). Check the API route and terminal logs.`,
+      `Invalid server response (HTTP ${response.status}). Check the API route and terminal logs.`
     );
   }
 
   if (!response.ok) {
     throw new Error(
-      getErrorMessage(data, `${fallback} (HTTP ${response.status})`),
+      getErrorMessage(data, `${fallback} (HTTP ${response.status})`)
     );
   }
 
@@ -3888,12 +4761,8 @@ function normalizeSlots(data: unknown): MeetingSlot[] {
       }
 
       const slot = item as Record<string, unknown>;
-
-      const start =
-        typeof slot.start === "string" ? slot.start : "";
-
-      const end =
-        typeof slot.end === "string" ? slot.end : "";
+      const start = typeof slot.start === "string" ? slot.start : "";
+      const end = typeof slot.end === "string" ? slot.end : "";
 
       if (!start || !end) {
         return null;
@@ -3919,19 +4788,93 @@ function normalizeSlots(data: unknown): MeetingSlot[] {
     .filter((slot): slot is MeetingSlot => slot !== null);
 }
 
+function validateMeetingDetails(details: MeetingDetails): void {
+  if (!details.title.trim()) {
+    throw new Error("Meeting title is required.");
+  }
+
+  if (!isValidDate(details.date)) {
+    throw new Error(
+      "Meeting date is missing or invalid. Please specify a valid date."
+    );
+  }
+
+  if (
+    !Number.isInteger(details.durationMinutes) ||
+    details.durationMinutes < 15 ||
+    details.durationMinutes > 180
+  ) {
+    throw new Error(
+      "Meeting duration is required and must be between 15 and 180 minutes."
+    );
+  }
+
+  if (!isValidTime(details.preferredStartTime)) {
+    throw new Error(
+      "An exact meeting start time is required, such as 11:30 AM."
+    );
+  }
+
+  if (!isValidTime(details.preferredEndTime)) {
+    throw new Error("The meeting end time is missing or invalid.");
+  }
+
+  const [startHours, startMinutes] =
+    details.preferredStartTime.split(":").map(Number);
+
+  const [endHours, endMinutes] =
+    details.preferredEndTime.split(":").map(Number);
+
+  const startTotal = startHours * 60 + startMinutes;
+  const endTotal = endHours * 60 + endMinutes;
+
+  if (endTotal <= startTotal) {
+    throw new Error(
+      "The meeting end time must be after its start time on the same day."
+    );
+  }
+
+  if (endTotal - startTotal !== details.durationMinutes) {
+    throw new Error(
+      "The start time, end time, and duration do not match. Please correct your request."
+    );
+  }
+
+  if (
+    !Array.isArray(details.attendees) ||
+    details.attendees.length === 0
+  ) {
+    throw new Error(
+      "Attendee email is required. Include at least one email address."
+    );
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (
+    details.attendees.some(
+      (email) => !emailPattern.test(email)
+    )
+  ) {
+    throw new Error(
+      "One or more attendee email addresses are invalid."
+    );
+  }
+}
+
 export default function MeetingSchedulerPage() {
   const [requestText, setRequestText] = useState("");
   const [details, setDetails] = useState<MeetingDetails | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<MeetingSlot | null>(null);
+  const [selectedSlot, setSelectedSlot] =
+    useState<MeetingSlot | null>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
   const [listening, setListening] = useState(false);
-  const [calendarEvent, setCalendarEvent] = useState<CreatedEvent | null>(
-    null,
-  );
+  const [calendarEvent, setCalendarEvent] =
+    useState<CreatedEvent | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const processingRef = useRef(false);
@@ -3960,7 +4903,12 @@ export default function MeetingSchedulerPage() {
     async (rawText: string) => {
       const prompt = rawText.trim();
 
-      if (!prompt || processingRef.current || creatingRef.current) {
+      if (processingRef.current || creatingRef.current) {
+        return;
+      }
+
+      if (!prompt) {
+        setError("Please type or speak your meeting request.");
         return;
       }
 
@@ -3971,84 +4919,79 @@ export default function MeetingSchedulerPage() {
       setError("");
 
       try {
-        // The AI route in this project expects the "request" field.
         const aiResponse = await fetch("/api/ai", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          cache: "no-store",
           body: JSON.stringify({ request: prompt }),
         });
 
         const aiData = await readJsonResponse(
           aiResponse,
-          "Could not understand the meeting request.",
+          "Could not understand the meeting request."
         );
 
-        // Supports either { result: {...} } or a direct details object.
         const aiRecord = aiData as Record<string, unknown>;
-        const parsed =
-          (aiRecord.result ?? aiData) as MeetingDetails;
+        const parsed = (aiRecord.result ?? aiData) as MeetingDetails;
 
-        if (
-          !parsed ||
-          typeof parsed.title !== "string" ||
-          typeof parsed.date !== "string" ||
-          !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ||
-          typeof parsed.preferredStartTime !== "string" ||
-          typeof parsed.preferredEndTime !== "string" ||
-          !Number.isInteger(parsed.durationMinutes)
-        ) {
+        if (!parsed || typeof parsed !== "object") {
           throw new Error(
-            "The AI response must include a valid date, start time, end time, and duration. Check src/app/api/ai/route.ts.",
+            "The AI did not return valid meeting details."
           );
         }
 
-        if (
-          !/^\d{2}:\d{2}$/.test(parsed.preferredStartTime) ||
-          !/^\d{2}:\d{2}$/.test(parsed.preferredEndTime)
-        ) {
-          throw new Error("The AI returned an invalid meeting time.");
-        }
-
         const safeDetails: MeetingDetails = {
-          title: parsed.title,
+          title: typeof parsed.title === "string" ? parsed.title : "",
           description:
             typeof parsed.description === "string"
               ? parsed.description
               : "",
-          date: parsed.date,
+          date: typeof parsed.date === "string" ? parsed.date : "",
           durationMinutes: parsed.durationMinutes,
-          preferredStartTime: parsed.preferredStartTime,
-          preferredEndTime: parsed.preferredEndTime,
+          preferredStartTime:
+            typeof parsed.preferredStartTime === "string"
+              ? parsed.preferredStartTime
+              : "",
+          preferredEndTime:
+            typeof parsed.preferredEndTime === "string"
+              ? parsed.preferredEndTime
+              : "",
           attendees: Array.isArray(parsed.attendees)
             ? parsed.attendees.filter(
                 (email): email is string =>
-                  typeof email === "string",
+                  typeof email === "string"
               )
             : [],
         };
 
+        // Validate everything before showing meeting details.
+        validateMeetingDetails(safeDetails);
+
         setDetails(safeDetails);
         setStatus("Checking Google Calendar availability...");
 
-        const availabilityResponse = await fetch("/api/availability", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          cache: "no-store",
-          body: JSON.stringify({
-            date: safeDetails.date,
-            durationMinutes: safeDetails.durationMinutes,
-            preferredStartTime: safeDetails.preferredStartTime,
-            preferredEndTime: safeDetails.preferredEndTime,
-          }),
-        });
+        const availabilityResponse = await fetch(
+          "/api/availability",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            cache: "no-store",
+            body: JSON.stringify({
+              date: safeDetails.date,
+              durationMinutes: safeDetails.durationMinutes,
+              preferredStartTime: safeDetails.preferredStartTime,
+              preferredEndTime: safeDetails.preferredEndTime,
+            }),
+          }
+        );
 
         const availabilityData = await readJsonResponse(
           availabilityResponse,
-          "Could not check Google Calendar availability.",
+          "Could not check Google Calendar availability."
         );
 
         const slots = normalizeSlots(availabilityData);
@@ -4061,9 +5004,7 @@ export default function MeetingSchedulerPage() {
             );
           }
 
-          // Fallback for availability APIs that only return ISO dates.
-          // This fallback assumes the browser timezone matches the
-          // calendar timezone configured for this application.
+          // Fallback for APIs that return ISO start/end values only.
           const startDate = new Date(slot.start);
           const endDate = new Date(slot.end);
 
@@ -4091,33 +5032,35 @@ export default function MeetingSchedulerPage() {
           setStatus("");
           setError(
             `The requested time (${formatTime(
-              safeDetails.preferredStartTime,
+              safeDetails.preferredStartTime
             )}–${formatTime(
-              safeDetails.preferredEndTime,
+              safeDetails.preferredEndTime
             )}) is not available on ${formatDateForDisplay(
-              safeDetails.date,
-            )}. No meeting was created.`,
+              safeDetails.date
+            )}. No meeting was created.`
           );
           return;
         }
 
         setSelectedSlot(matchingSlot);
         setStatus(
-          "The requested time is available. Review the details and confirm.",
+          "The requested time is available. Review all details and confirm."
         );
       } catch (caught) {
+        setDetails(null);
+        setSelectedSlot(null);
         setStatus("");
         setError(
           caught instanceof Error
             ? caught.message
-            : "Something went wrong while processing the meeting request.",
+            : "Something went wrong while processing the meeting request."
         );
       } finally {
         processingRef.current = false;
         setProcessing(false);
       }
     },
-    [resetPreviousResult],
+    [resetPreviousResult]
   );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -4126,7 +5069,7 @@ export default function MeetingSchedulerPage() {
   }
 
   function handleInputKeyDown(
-    event: KeyboardEvent<HTMLTextAreaElement>,
+    event: KeyboardEvent<HTMLTextAreaElement>
   ) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -4137,6 +5080,12 @@ export default function MeetingSchedulerPage() {
   function startVoiceRecognition() {
     setError("");
 
+    if (listening) {
+      autoProcessVoiceRef.current = true;
+      recognitionRef.current?.stop();
+      return;
+    }
+
     const speechWindow = window as WindowWithSpeechRecognition;
 
     const SpeechRecognitionAPI =
@@ -4145,14 +5094,8 @@ export default function MeetingSchedulerPage() {
 
     if (!SpeechRecognitionAPI) {
       setError(
-        "Voice recognition is not supported in this browser. Use Chrome or type your request.",
+        "Voice recognition is not supported in this browser. Use Chrome or type your request."
       );
-      return;
-    }
-
-    if (listening) {
-      autoProcessVoiceRef.current = true;
-      recognitionRef.current?.stop();
       return;
     }
 
@@ -4208,17 +5151,18 @@ export default function MeetingSchedulerPage() {
           .filter(Boolean)
           .join(" ")
           .replace(/\s+/g, " ")
-          .trim(),
+          .trim()
       );
     };
 
     recognition.onerror = (event) => {
       setListening(false);
 
+      autoProcessVoiceRef.current = false;
+
       if (event.error !== "no-speech" && event.error !== "aborted") {
-        autoProcessVoiceRef.current = false;
         setError(
-          `Voice recognition failed: ${event.error ?? "unknown error"}`,
+          `Voice recognition failed: ${event.error ?? "unknown error"}`
         );
       }
     };
@@ -4267,13 +5211,32 @@ export default function MeetingSchedulerPage() {
   }
 
   async function confirmAndCreateMeeting() {
-    if (
-      !details ||
-      !selectedSlot ||
-      creatingRef.current ||
-      processingRef.current ||
-      created
-    ) {
+    if (processingRef.current || creatingRef.current) {
+      return;
+    }
+
+    if (!details || !selectedSlot || created) {
+      setError(
+        "Please provide all required meeting details and confirm an available time first."
+      );
+      return;
+    }
+
+    try {
+      validateMeetingDetails(details);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Meeting details are incomplete."
+      );
+      return;
+    }
+
+    if (!selectedSlot.start || !selectedSlot.end) {
+      setError(
+        "A confirmed Google Calendar time slot is required before creating the meeting."
+      );
       return;
     }
 
@@ -4301,17 +5264,17 @@ export default function MeetingSchedulerPage() {
 
       const result = (await readJsonResponse(
         response,
-        "Could not create the calendar event.",
+        "Could not create the calendar event."
       )) as {
         success?: boolean;
         message?: string;
         event?: CreatedEvent;
       };
 
-      if (!result.success || !result.event?.htmlLink) {
+      if (!result.success || !result.event) {
         throw new Error(
           result.message ??
-            "The server did not return the calendar event link.",
+            "Google Calendar did not confirm that the event was created."
         );
       }
 
@@ -4324,7 +5287,7 @@ export default function MeetingSchedulerPage() {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not create the meeting.",
+          : "Could not create the meeting."
       );
     } finally {
       creatingRef.current = false;
@@ -4335,9 +5298,17 @@ export default function MeetingSchedulerPage() {
   const canConfirm = Boolean(
     details &&
       selectedSlot &&
+      details.title.trim() &&
+      isValidDate(details.date) &&
+      isValidTime(details.preferredStartTime) &&
+      isValidTime(details.preferredEndTime) &&
+      Number.isInteger(details.durationMinutes) &&
+      details.durationMinutes >= 15 &&
+      details.durationMinutes <= 180 &&
+      details.attendees.length > 0 &&
       !created &&
       !processing &&
-      !creating,
+      !creating
   );
 
   return (
@@ -4353,8 +5324,8 @@ export default function MeetingSchedulerPage() {
           </h1>
 
           <p className="mt-3 text-sm text-slate-600 sm:text-base">
-            Type or speak your request. We will check your Google Calendar
-            before you confirm.
+            Type or speak your request. Required details are validated
+            before checking Google Calendar.
           </p>
         </header>
 
@@ -4370,9 +5341,16 @@ export default function MeetingSchedulerPage() {
             <textarea
               id="meeting-request"
               value={requestText}
-              onChange={(event) => setRequestText(event.target.value)}
+              onChange={(event) => {
+                setRequestText(event.target.value);
+
+                // Prevent confirming an old result after editing the request.
+                if (details || selectedSlot || created || error) {
+                  resetPreviousResult();
+                }
+              }}
               onKeyDown={handleInputKeyDown}
-              placeholder="Please set up a meeting for tomorrow at 11:00 AM for 30 minutes with someone@example.com"
+              placeholder="Please schedule a project meeting tomorrow at 11:00 AM for 30 minutes with someone@example.com"
               rows={4}
               disabled={processing || creating || listening}
               className="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60"
@@ -4429,7 +5407,8 @@ export default function MeetingSchedulerPage() {
               className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
               role="alert"
             >
-              {error}
+              <strong className="block">Meeting request needs attention</strong>
+              <span className="mt-1 block">{error}</span>
             </div>
           )}
 
@@ -4478,9 +5457,7 @@ export default function MeetingSchedulerPage() {
                 <div className="py-3">
                   <dt className="text-slate-500">Attendees</dt>
                   <dd className="mt-1 break-all font-semibold text-slate-900">
-                    {details.attendees.length > 0
-                      ? details.attendees.join(", ")
-                      : "No attendee email detected"}
+                    {details.attendees.join(", ")}
                   </dd>
                 </div>
 
@@ -4508,18 +5485,28 @@ export default function MeetingSchedulerPage() {
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700"
                     >
                       📅{" "}
-                      {calendarEvent.isDirectEventLink
-                        ? "View Event in Google Calendar"
-                        : "Open Google Calendar"}
+                      {calendarEvent.isDirectEventLink === false
+                        ? "Open Google Calendar"
+                        : "View Event in Google Calendar"}
                       {" "}↗
+                    </a>
+                  )}
+
+                  {!calendarEvent?.htmlLink && (
+                    <a
+                      href="https://calendar.google.com/calendar/u/0/r"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      📅 Open Google Calendar ↗
                     </a>
                   )}
 
                   {calendarEvent?.isDirectEventLink === false && (
                     <p className="text-xs leading-5 text-slate-600">
-                      Google did not return a direct event link. The button
-                      opens Google Calendar on the meeting date. Find the
-                      meeting there by its title and time.
+                      Google Calendar did not return a direct event link.
+                      Find the event by its title and time.
                     </p>
                   )}
                 </div>
@@ -4543,8 +5530,9 @@ export default function MeetingSchedulerPage() {
 
               {!selectedSlot && !created && !processing && !error && (
                 <p className="mt-3 text-xs text-slate-500">
-                  The confirmation button becomes available after the exact
-                  requested time is confirmed available.
+                  The confirmation button is enabled only after all
+                  required details are valid and the exact time is
+                  confirmed available.
                 </p>
               )}
             </div>
